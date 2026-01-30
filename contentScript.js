@@ -7,7 +7,7 @@
  */
 
 const POSTED_RE =
-  /Posted\s+(?:(\d+)\s+(minute|minutes|hour|hours|day|days|week|weeks|month|months)|just\s+now)\s+ago/i;
+  /Posted\s+(?:(\d+)\s+(second|seconds|minute|minutes|hour|hours|day|days|week|weeks|month|months)|just\s+now)\s+ago/i;
 
 function canonicalizeUrl(rawUrl) {
   try {
@@ -56,6 +56,7 @@ function parsePostedAgeMinutes(text) {
   const unit = String(m[2] || "").toLowerCase();
   if (!Number.isFinite(n)) return null;
 
+  if (unit.startsWith("second")) return n / 60;
   if (unit.startsWith("minute")) return n;
   if (unit.startsWith("hour")) return n * 60;
   if (unit.startsWith("day")) return n * 60 * 24;
