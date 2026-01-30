@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "Upwork Job Tabs Opener",
+  "version": "1.0.0",
+  "description": "Open all Upwork job results on the current page in new tabs.",
+  "action": {
+    "default_title": "Open Upwork jobs",
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "permissions": ["tabs", "activeTab"],
+  "host_permissions": ["https://www.upwork.com/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://www.upwork.com/*"],
+      "js": ["contentScript.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
+
