@@ -25,6 +25,24 @@ function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n));
 }
 
+function ageToMinutes(value, unit) {
+  const v = Number.isFinite(value) ? value : 0;
+  switch (unit) {
+    case "minutes":
+      return v;
+    case "hours":
+      return v * 60;
+    case "days":
+      return v * 60 * 24;
+    case "weeks":
+      return v * 60 * 24 * 7;
+    case "months":
+      return v * 60 * 24 * 30;
+    default:
+      return v * 60;
+  }
+}
+
 document.getElementById("openBtn").addEventListener("click", async () => {
   setStatus("Working...");
 
@@ -44,9 +62,18 @@ document.getElementById("openBtn").addEventListener("click", async () => {
     const maxTabs = clamp(Number.isFinite(maxTabsRaw) ? maxTabsRaw : 50, 1, 200);
     const openInBackground = Boolean(document.getElementById("bg").checked);
 
+    const ageEnabled = Boolean(document.getElementById("ageEnabled").checked);
+    const ageValueRaw = Number(document.getElementById("ageValue").value);
+    const ageValue = clamp(Number.isFinite(ageValueRaw) ? ageValueRaw : 24, 0, 9999);
+    const ageUnit = String(document.getElementById("ageUnit").value || "hours");
+    const maxAgeMinutes = ageEnabled ? ageToMinutes(ageValue, ageUnit) : null;
+
     let res;
     try {
-      res = await collectUrls(tab.id);
+      res = await chrome.tabs.sendMessage(tab.id, {
+        type: "COLLECT_JOB_URLS",
+        maxAgeMinutes
+      });
     } catch {
       setStatus(
         "Couldn't connect to the page.\nTry refreshing the Upwork tab, then click the extension again."
@@ -60,7 +87,11 @@ document.getElementById("openBtn").addEventListener("click", async () => {
 
     const urls = Array.isArray(res.urls) ? res.urls : [];
     if (urls.length === 0) {
-      setStatus("No job links found on this page.");
+      const suffix =
+        ageEnabled && typeof res?.skippedOld === "number"
+          ? `\nFiltered out ${res.skippedOld || 0} old / ${res.skippedUnknown || 0} unknown-age jobs.`
+          : "";
+      setStatus(`No job links found on this page.${suffix}`);
       return;
     }
 
@@ -73,7 +104,11 @@ document.getElementById("openBtn").addEventListener("click", async () => {
     }
 
     const extra = urls.length > limited.length ? `\n(Showing first ${limited.length} of ${urls.length})` : "";
-    setStatus(`Opened ${openRes.opened} tabs.${extra}`);
+    const filtered =
+      ageEnabled && (typeof res?.skippedOld === "number" || typeof res?.skippedUnknown === "number")
+        ? `\nFiltered out ${res.skippedOld || 0} old / ${res.skippedUnknown || 0} unknown-age jobs.`
+        : "";
+    setStatus(`Opened ${openRes.opened} tabs.${extra}${filtered}`);
   } catch (e) {
     setStatus(`Error: ${String(e?.message || e)}`);
   }

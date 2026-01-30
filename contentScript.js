@@ -6,6 +6,9 @@
  * - Canonicalizes relative URLs and removes tracking params.
  */
 
+const POSTED_RE =
+  /Posted\s+(?:(\d+)\s+(minute|minutes|hour|hours|day|days|week|weeks|month|months)|just\s+now)\s+ago/i;
+
 function canonicalizeUrl(rawUrl) {
   try {
     const u = new URL(rawUrl, window.location.href);
@@ -42,9 +45,42 @@ function canonicalizeUrl(rawUrl) {
   }
 }
 
-function collectJobUrlsFromPage() {
+function parsePostedAgeMinutes(text) {
+  const m = POSTED_RE.exec(text);
+  if (!m) return null;
+
+  // "Posted just now ago" (yes, Upwork uses "... ago" after "just now" too)
+  if (!m[1] && /just\s+now/i.test(m[0])) return 0;
+
+  const n = Number(m[1]);
+  const unit = String(m[2] || "").toLowerCase();
+  if (!Number.isFinite(n)) return null;
+
+  if (unit.startsWith("minute")) return n;
+  if (unit.startsWith("hour")) return n * 60;
+  if (unit.startsWith("day")) return n * 60 * 24;
+  if (unit.startsWith("week")) return n * 60 * 24 * 7;
+  if (unit.startsWith("month")) return n * 60 * 24 * 30;
+  return null;
+}
+
+function findPostedAgeMinutesNear(element) {
+  // Walk up the DOM looking for the "Posted ... ago" text within a reasonable container.
+  let node = element;
+  for (let i = 0; i < 10 && node; i += 1) {
+    const text = node.innerText || "";
+    const minutes = parsePostedAgeMinutes(text);
+    if (minutes !== null) return minutes;
+    node = node.parentElement;
+  }
+  return null;
+}
+
+function collectJobUrlsFromPage(maxAgeMinutes) {
   const anchors = Array.from(document.querySelectorAll("a[href]"));
   const urls = [];
+  let skippedOld = 0;
+  let skippedUnknown = 0;
 
   for (const a of anchors) {
     const href = a.getAttribute("href");
@@ -52,7 +88,21 @@ function collectJobUrlsFromPage() {
     if (!href.includes("/jobs/")) continue;
 
     const url = canonicalizeUrl(href);
-    if (url) urls.push(url);
+    if (!url) continue;
+
+    if (typeof maxAgeMinutes === "number") {
+      const ageMinutes = findPostedAgeMinutesNear(a);
+      if (ageMinutes === null) {
+        skippedUnknown += 1;
+        continue;
+      }
+      if (ageMinutes > maxAgeMinutes) {
+        skippedOld += 1;
+        continue;
+      }
+    }
+
+    urls.push(url);
   }
 
   // De-dupe while preserving order.
@@ -63,13 +113,24 @@ function collectJobUrlsFromPage() {
     seen.add(url);
     unique.push(url);
   }
-  return unique;
+  return { urls: unique, skippedOld, skippedUnknown };
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (!message || message.type !== "COLLECT_JOB_URLS") return;
 
-  const urls = collectJobUrlsFromPage();
-  sendResponse({ ok: true, urls, count: urls.length });
+  const maxAgeMinutes =
+    typeof message.maxAgeMinutes === "number" && Number.isFinite(message.maxAgeMinutes)
+      ? message.maxAgeMinutes
+      : null;
+
+  const res = collectJobUrlsFromPage(maxAgeMinutes);
+  sendResponse({
+    ok: true,
+    urls: res.urls,
+    count: res.urls.length,
+    skippedOld: res.skippedOld,
+    skippedUnknown: res.skippedUnknown
+  });
 });
 

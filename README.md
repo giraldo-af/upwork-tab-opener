@@ -19,5 +19,6 @@ Simple Chrome extension that **opens all Upwork job links on the current page** 
 ## Notes
 
 - It opens links that contain `/jobs/` and are on `www.upwork.com`.
+- Optional filter: only open jobs whose card text includes `Posted N units ago` within your chosen max age.
 - If Upwork changes markup/URLs, the selector logic in `contentScript.js` is where to adjust.
 

@@ -57,10 +57,26 @@
       </label>
     </div>
 
+    <div class="row">
+      <label for="ageValue">Max age</label>
+      <input id="ageValue" type="number" min="0" max="9999" value="24" />
+      <select id="ageUnit" aria-label="Age unit">
+        <option value="minutes">minutes</option>
+        <option value="hours" selected>hours</option>
+        <option value="days">days</option>
+        <option value="weeks">weeks</option>
+        <option value="months">months</option>
+      </select>
+      <label for="ageEnabled">
+        <input id="ageEnabled" type="checkbox" checked />
+        filter
+      </label>
+    </div>
+
     <button id="openBtn">Open jobs</button>
 
     <div class="hint">
-      Tip: run this on Upwork job search results pages; it opens all detected job links from the current page.
+      Tip: run this on Upwork job search results pages; it opens detected job links from the current page and can filter by how recently they were posted.
     </div>
 
     <div id="status" class="status"></div>
