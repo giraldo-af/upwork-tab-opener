@@ -12,12 +12,12 @@ async function collectUrls(tabId) {
   return await chrome.tabs.sendMessage(tabId, { type: "COLLECT_JOB_URLS" });
 }
 
-async function openUrls(urls, openInBackground) {
+async function openUrls(urls, openInBackground, delayMs) {
   return await chrome.runtime.sendMessage({
     type: "OPEN_URLS",
     urls,
     openInBackground,
-    delayMs: 200
+    delayMs
   });
 }
 
@@ -95,8 +95,11 @@ document.getElementById("openBtn").addEventListener("click", async () => {
       return;
     }
 
+    const delayRaw = Number(document.getElementById("delayMs").value);
+    const delayMs = clamp(Number.isFinite(delayRaw) ? delayRaw : 300, 0, 5000);
+
     const limited = urls.slice(0, maxTabs);
-    const openRes = await openUrls(limited, openInBackground);
+    const openRes = await openUrls(limited, openInBackground, delayMs);
 
     if (!openRes?.ok) {
       setStatus(`Failed to open tabs: ${openRes?.error || "unknown error"}`);
